@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>زيارة الزبون</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<style>
+body{
+  font-family: Arial;
+  direction: rtl;
+  background:#f2f2f2;
+  padding:20px;
+}
+.box{
+  background:white;
+  padding:20px;
+  max-width:520px;
+  margin:auto;
+  border-radius:10px;
+  margin-bottom:15px;
+}
+input, select, button{
+  width:100%;
+  padding:10px;
+  margin-top:10px;
+}
+button{
+  background:#007bff;
+  color:white;
+  border:none;
+  cursor:pointer;
+}
+.hidden{display:none}
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+td,th{
+  border:1px solid #ccc;
+  padding:5px;
+  font-size:12px;
+  text-align:center;
+}
+</style>
+</head>
+
+<body>
+
+<!-- تقرير PDF -->
+<div class="box" id="report">
+  <h2>زيارة الزبون</h2>
+  <p id="dt"></p>
+  <p>اسم الموظف: <span id="r_employee"></span></p>
+  <p>رقم الهاتف: <span id="r_phone"></span></p>
+  <p>موقع الزبون: <span id="r_location"></span></p>
+  <p>سبب الزيارة: <span id="r_reason"></span></p>
+
+  <div id="r_collect" class="hidden">
+    <p>مبلغ الاستحصال: <span id="r_amount"></span></p>
+    <p>تاريخ الاستحصال: <span id="r_cdate"></span></p>
+  </div>
+
+  <img id="r_image" style="max-width:100%;margin-top:10px;">
+</div>
+
+<!-- إدخال البيانات -->
+<div class="box">
+  <input id="employee" placeholder="اسم الموظف">
+  <input id="phone" placeholder="رقم هاتف الزبون">
+  <input id="location" placeholder="موقع الزبون">
+
+  <select id="reason" onchange="checkReason()">
+    <option value="">سبب الزيارة</option>
+    <option>استحصال</option>
+    <option>بيع</option>
+    <option>عرض منتج</option>
+  </select>
+
+  <div id="collectBox" class="hidden">
+    <input id="amount" type="number" placeholder="مبلغ الاستحصال">
+    <input id="collectDate" type="date">
+  </div>
+
+  <input type="file" id="image" accept="image/*">
+
+  <button onclick="makePDF()">حفظ الزيارة PDF</button>
+  <button onclick="showRecords()">عرض سجل الزيارات</button>
+</div>
+
+<!-- سجل الزيارات -->
+<div class="box hidden" id="recordsBox">
+  <h3>سجل الزيارات</h3>
+  <table id="recordsTable">
+    <tr>
+      <th>الموظف</th>
+      <th>الهاتف</th>
+      <th>السبب</th>
+      <th>التاريخ</th>
+    </tr>
+  </table>
+</div>
+
+<script>
+function checkReason(){
+  collectBox.classList.toggle("hidden", reason.value !== "استحصال");
+}
+
+function makePDF(){
+  const now = new Date();
+  dt.innerText = "التاريخ: " + now.toLocaleDateString("ar-IQ") +
+                " | الوقت: " + now.toLocaleTimeString("ar-IQ",{hour:'2-digit',minute:'2-digit'});
+
+  r_employee.innerText = employee.value;
+  r_phone.innerText = phone.value;
+  r_location.innerText = location.value;
+  r_reason.innerText = reason.value;
+
+  if(reason.value === "استحصال"){
+    r_collect.classList.remove("hidden");
+    r_amount.innerText = amount.value + " د.ع";
+    r_cdate.innerText = collectDate.value;
+  }else{
+    r_collect.classList.add("hidden");
+  }
+
+  const img = image.files[0];
+  if(img){
+    const reader = new FileReader();
+    reader.onload = e => r_image.src = e.target.result;
+    reader.readAsDataURL(img);
+  }
+
+  // حفظ السجل
+  let visits = JSON.parse(localStorage.getItem("visits") || "[]");
+  visits.push({
+    employee: employee.value,
+    phone: phone.value,
+    reason: reason.value,
+    date: now.toLocaleString("ar-IQ")
+  });
+  localStorage.setItem("visits", JSON.stringify(visits));
+
+  setTimeout(()=>{
+    html2pdf().from(report).set({
+      filename:'زيارة_زبون.pdf',
+      html2canvas:{scale:2},
+      jsPDF:{format:'a4'}
+    }).save();
+  },500);
+}
+
+function showRecords(){
+  recordsBox.classList.remove("hidden");
+  const table = document.getElementById("recordsTable");
+  table.innerHTML = `<tr><th>الموظف</th><th>الهاتف</th><th>السبب</th><th>التاريخ</th></tr>`;
+  const visits = JSON.parse(localStorage.getItem("visits") || "[]");
+  visits.forEach(v=>{
+    table.innerHTML += `<tr>
+      <td>${v.employee}</td>
+      <td>${v.phone}</td>
+      <td>${v.reason}</td>
+      <td>${v.date}</td>
+    </tr>`;
+  });
+}
+</script>
+
+</body>
+</html>
